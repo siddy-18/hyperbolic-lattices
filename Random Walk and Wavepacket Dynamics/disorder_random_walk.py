@@ -8,14 +8,14 @@ from hypertiling import HyperbolicTiling
 from hypertiling.neighbors import find_radius_optimized_single
 import hypertiling as ht
 
-from randomwalk import simulate_random_walk_sparse
+from hyperbolic.randomwalk import simulate_random_walk_sparse
 
 # DEFINE PARAMETERS
 
 p = 10
 q = 3
-n = 3
-t_max = 20
+n = 10 #This needs to be changed based on the results fro random_walk_by_gen.py. The n value should be the maximum n for which the linear region is observed for the given p and q. If the linear region just keeps increasing, then n can be set to a large value like 10 or 20. The goal is to capture the behavior of the quantum walk in the linear region before it saturates or localizes.
+t_max = 10
 
 Nds = 50  # Number of disorder realizations to average over
 N = 20    # Number of disorder strengths to test
@@ -115,98 +115,3 @@ plt.ylabel("Disorder Strength ($W$)", fontsize=12)
 
 plt.tight_layout()
 plt.show()
-
-# import numpy as np
-# import matplotlib.pyplot as plt
-# import scipy.sparse as sp
-# from scipy.sparse import lil_matrix, csr_matrix
-# from hypertiling import HyperbolicTiling
-# from hypertiling.neighbors import find_radius_optimized_single
-# import hypertiling as ht
-
-# # Assume these are imported from your custom modules
-# from randomwalk import simulate_random_walk_sparse, linear_region_study
-
-# # --- 1. DEFINE PARAMETERS ---
-# p = 10
-# q = 3
-# n = 3
-# t_max = 20
-
-# # --- 2. PRECOMPUTE THE CLEAN GEOMETRY (DO THIS ONLY ONCE) ---
-# print("Generating hyperbolic lattice...")
-# T = HyperbolicTiling(q, p, n, kernel='SRG', center='vertex')
-# size = len(T)
-# A_clean = lil_matrix((size, size), dtype=np.float64)
-
-# for i in range(size):
-#     neighbors = find_radius_optimized_single(T, i, radius=None, eps=1e-5)
-#     for j in neighbors:
-#         A_clean[i, j] = 1
-#         A_clean[j, i] = 1
-
-# # Create the base Tight-Binding Hamiltonian (-1 * Adjacency)
-# H_clean_csr = csr_matrix(-1.0 * A_clean)
-
-# # Precompute coordinates and squared distances (also only needs to happen once!)
-# coords = [T.get_center(i) for i in range(len(T))]
-# site = 0 # Starting site
-# r2 = np.zeros(len(coords))
-# for i in range(len(coords)):
-#     d = ht.distance.disk_distance(coords[i], coords[site])
-#     r2[i] = d**2
-
-
-# # --- 3. UPDATED DYNAMIC SIMULATION FUNCTION ---
-# def std_dev_with_t_sparse_fast(H_disordered, T, t_max, r2_array):
-#     times = np.arange(t_max)
-#     stds = []
-
-#     for t in times:
-#         prob = simulate_random_walk_sparse(T, t, H_disordered)
-#         sigma = np.sqrt(np.sum(prob * r2_array))
-#         stds.append(sigma)
-    
-#     return times, stds
-
-
-# # --- 4. THE DISORDER LOOP ---
-# Nds = 50 
-# N = 20
-# Ws = np.linspace(1, 40, N) 
-
-# max_spreads_mean = []
-# rng = np.random.default_rng()
-
-# print("Starting disorder simulations...")
-# for W in Ws:
-#     spreads_for_this_W = []
-    
-#     for Nd in range(Nds):
-#         # FAST: Just add a diagonal to the pre-built clean Hamiltonian
-#         disorder_vector = rng.uniform(-W/2.0, W/2.0, size=size)
-#         H_disordered = H_clean_csr + sp.diags(disorder_vector, format='csr')
-        
-#         # Run the quantum walk
-#         times, stds = std_dev_with_t_sparse_fast(H_disordered, T, t_max, r2)
-        
-#         # Find the limit (assuming linear_region_study returns the index as the first argument)
-#         lim_idx, _, _, _ = linear_region_study(times, stds)
-
-#         # Protect against edge cases where linear_region_study might return an index out of bounds
-#         lim_idx = min(lim_idx, len(stds) - 1)
-        
-#         plateau_spread = stds[lim_idx]
-#         spreads_for_this_W.append(plateau_spread)
-        
-#     max_spreads_mean.append(np.mean(spreads_for_this_W))
-#     print(f"Completed W = {W:.2f}")
-
-# # --- 5. PLOTTING ---
-# plt.figure(figsize=(8, 6))
-# plt.plot(Ws, max_spreads_mean, 'o-', color='teal', linewidth=2)
-# plt.xlabel("Disorder Strength (W)")
-# plt.ylabel("Plateau Spread ($\sigma$ at limit index)")
-# plt.title(f"Dynamical Localization vs. Disorder (p={p}, q={q})")
-# plt.grid(True, linestyle='--', alpha=0.6)
-# plt.show()
