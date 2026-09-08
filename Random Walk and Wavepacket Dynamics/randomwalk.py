@@ -207,7 +207,7 @@ def p_q_slope(p_min=3, p_max=8, q_min=3, q_max=8, t_max=7):
     # Sized to allow direct indexing: slopes[p, q]
     slopes = np.full((p_max+1, q_max+1), np.nan)
     lin_times = np.full((p_max+1, q_max+1), np.nan)
-    energies = np.full((p_max+1, q_max+1, t_max), np.nan)
+    energies = np.full((p_max+1, q_max+1, len(np.arange(0, t_max, 0.05))), np.nan)
 
     for p in range(p_min, p_max+1):
         for q in range(q_min, q_max+1):
