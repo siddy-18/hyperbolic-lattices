@@ -52,7 +52,7 @@ for plot_dir in [SPREAD_PLOT_DIR, ENERGY_PLOT_DIR, IPR_PLOT_DIR,
                  ALPHA_PLOT_DIR, FIT_PLOT_DIR]:
     os.makedirs(plot_dir, exist_ok=True)
 
-Nds = 100          # number of disorder realizations
+Nds = 1500          # number of disorder realizations
 
 # Read the actual SLURM core allocation rather than autodetecting the node's
 # full core count (-1 in joblib can overshoot what was actually granted by
@@ -403,12 +403,12 @@ def p_q_alpha(p, q, n=8, W=40.0, t_max=7, plot_fit=False, H_clean=None, T=None, 
             logger.info(f"Computed alpha for p={p}, q={q}, W={W}: {alpha} "
                         f"(R2={fit_result['r2']:.4f})")
 
-            plt.figure()
-            plt.plot(ave_time, ave_ipr, marker='o')
-            plt.xlabel("t"); plt.ylabel("ipr profile")
-            plt.title(f"IPR vs t (p={p}, q={q}, n={n}, W={W})")
-            plt.savefig(os.path.join(IPR_PLOT_DIR, f"ipr_vs_t_p{p}_q{q}_n{n}_W{W}.png"))
-            plt.close()
+            # plt.figure()
+            # plt.plot(ave_time, ave_ipr, marker='o')
+            # plt.xlabel("t"); plt.ylabel("ipr profile")
+            # plt.title(f"IPR vs t (p={p}, q={q}, n={n}, W={W})")
+            # plt.savefig(os.path.join(IPR_PLOT_DIR, f"ipr_vs_t_p{p}_q{q}_n{n}_W{W}.png"))
+            # plt.close()
 
             return alpha, ave_time, ave_ipr
 
@@ -477,38 +477,41 @@ def save_combined_ipr_plot(ipr_curves, p, q, n):
 
 
 if __name__ == "__main__":
-    p, q, n = 4, 5, 8
-    W_values = np.arange(5, 201, 5)  # 5, 10, ..., 200
+    p, q = 4, 5
 
-    logger.info(f"Using N_JOBS={N_JOBS}")
+    for n in range(6, 8):
+        logger.info(f"Starting computation for n = {n}")
+        W_values = np.arange(5, 201, 5)  # 5, 10, ..., 200
 
-    # Build tiling geometry ONCE -- reused across every W value in the sweep,
-    # instead of being rebuilt inside p_q_alpha on every call.
-    H_clean, T = hyperbolic_adjacency_sparse(p, q, n)
-    r2 = compute_r2(T)
+        logger.info(f"Using N_JOBS={N_JOBS}")
 
-    valid_Ws, alphas, ipr_curves = load_checkpoint()
-    if valid_Ws:
-        logger.info(f"Resuming from checkpoint -- already have W={valid_Ws}")
+        # Build tiling geometry ONCE -- reused across every W value in the sweep,
+        # instead of being rebuilt inside p_q_alpha on every call.
+        H_clean, T = hyperbolic_adjacency_sparse(p, q, n)
+        r2 = compute_r2(T)
 
-    remaining_Ws = [W for W in W_values if W not in valid_Ws]
+        valid_Ws, alphas, ipr_curves = load_checkpoint()
+        if valid_Ws:
+            logger.info(f"Resuming from checkpoint -- already have W={valid_Ws}")
 
-    for W in remaining_Ws:
-        logger.info(f"Running W = {W}")
-        result = p_q_alpha(p, q, n=n, W=W, H_clean=H_clean, T=T, r2=r2)
-        if result is not None:
-            alpha, ave_time, ave_ipr = result
-            alphas.append(alpha)
-            valid_Ws.append(W)
-            ipr_curves[W] = (ave_time, ave_ipr)
+        remaining_Ws = [W for W in W_values if W not in valid_Ws]
 
-            # Save everything as soon as this W's result is available, so a
-            # wall-time kill or crash partway through the sweep loses at most
-            # the W currently in flight, not the whole run.
-            save_checkpoint(valid_Ws, alphas, ipr_curves)
-            save_alpha_vs_W_plot(valid_Ws, alphas, p, q, n)
-            save_combined_ipr_plot(ipr_curves, p, q, n)
-        else:
-            logger.warning(f"Skipping W={W}: simulation failed")
+        for W in remaining_Ws:
+            logger.info(f"Running W = {W}")
+            result = p_q_alpha(p, q, n=n, W=W, H_clean=H_clean, T=T, r2=r2)
+            if result is not None:
+                alpha, ave_time, ave_ipr = result
+                alphas.append(alpha)
+                valid_Ws.append(W)
+                ipr_curves[W] = (ave_time, ave_ipr)
+
+                # Save everything as soon as this W's result is available, so a
+                # wall-time kill or crash partway through the sweep loses at most
+                # the W currently in flight, not the whole run.
+                save_checkpoint(valid_Ws, alphas, ipr_curves)
+                save_alpha_vs_W_plot(valid_Ws, alphas, p, q, n)
+                save_combined_ipr_plot(ipr_curves, p, q, n)
+            else:
+                logger.warning(f"Skipping W={W}: simulation failed")
 
     logger.info("Sweep complete.")
